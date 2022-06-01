@@ -1,0 +1,206 @@
+
+
+# import pandas as pd
+# import numpy as np
+# import seaborn as sns
+# import matplotlib.pyplot as plt
+# %matplotlib inline
+
+
+
+
+gun = pd.read_html("https://en.wikipedia.org/wiki/Estimated_number_of_civilian_guns_per_capita_by_country")
+
+
+
+
+gun2 = gun1.iloc[:, 1:]
+
+
+# print(gun2)
+
+
+gun2 = gun2.rename(columns = {'Country or subnational area': 'Country'})
+
+
+# In[88]:
+
+
+gun2
+
+
+
+sns.set_style("white")
+plt.figure(figsize =(10,10))
+sns.jointplot(data = gun2, x = 'Region', y = 'Estimate of civilian firearms per 100 persons', color = 'red')
+plt.xlabel("Region")
+plt.title('CIVILIAN FIREARM BY COUNTRY', loc = 'center')
+
+
+gun2.info()
+
+
+
+gun2.describe()
+
+
+
+heat_map = gun2.corr()
+
+
+sns.heatmap(data = heat_map)
+
+
+
+from bs4 import BeautifulSoup
+import requests
+
+url = 'https://www.numbeo.com/crime/rankings_by_country.jsp'
+page = requests.get(url)
+
+soup = BeautifulSoup(page.text, 'lxml')
+
+
+#getting the data
+
+table = soup.find('table', {'id': 't2'})
+
+headers = []
+for i in table.find_all('th'):
+    title = i.text.strip()
+    headers.append(title)
+
+
+
+headers
+
+crime = pd.DataFrame(columns = headers)
+
+for row in table.find_all('tr')[1:]:
+    data = row.find_all('td')
+    row_data = [td.text.strip() for td in data]
+    length = len(crime)
+    crime.loc[length] = row_data
+
+
+
+
+combined = pd.merge(gun2, crime, how = 'inner', on = 'Country')
+
+
+# In[321]:
+
+
+combined.columns
+
+
+# In[107]:
+
+
+sns.pairplot(data = combined)
+
+
+# In[325]:
+
+
+combined['Crime Index'] = combined['Crime Index'].astype('float') 
+
+
+# In[326]:
+
+
+combined['Safety Index'] = combined['Safety Index'].astype('float')
+
+
+# In[327]:
+
+
+combined['Safety Index'].dtypes
+
+
+# In[159]:
+
+
+plt.figure(figsize =(15,10))
+sns.scatterplot(x = 'Estimate of civilian firearms per 100 persons', y = 'Crime Index' , data = combined, hue = 'Subregion')
+
+
+# despite the high number of firearms per 100 persons in Southern Europe, Crime Index is relatively low
+# South America has the highest Crime Index
+# North Amerca has the hghest number of firearms per 100 persons
+
+# In[328]:
+
+
+combined.columns
+
+
+# In[336]:
+
+
+combined['Unregistered firearms'].fillna(0, inplace = True)
+combined['Registered firearms'].fillna(0, inplace = True)
+
+
+# In[355]:
+
+
+X = combined[['Country', 'Estimate of civilian firearms per 100 persons', 'Region',
+       'Subregion', 'Population 2017',
+       'Estimate of firearms in civilian possession',
+       'Registered firearms', 'Unregistered firearms']]
+X = X.select_dtypes(include = 'number')
+
+
+X1 = X.select_dtypes(include = 'number')
+
+from sklearn.preprocessing import StandardScaler
+
+Ss = StandardScaler()
+Ss.fit(X)
+
+
+# In[339]:
+
+
+X.isnull().sum()
+
+
+# In[340]:
+
+
+X = Ss.transform(X)
+
+
+# In[265]:
+
+
+y = combined['Crime Index']
+
+from sklearn.model_selection import train_test_split
+
+
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.33, random_state=42)
+
+
+from sklearn.linear_model import LinearRegression
+
+
+# In[344]:
+
+
+lr = LinearRegression()
+
+
+lr.fit(X_train, y_train)
+
+
+
+lr.coef_
+
+pd.DataFrame(lr.coef_, index = X1.columns, columns = ['variable'])
+
+
+
+
+
